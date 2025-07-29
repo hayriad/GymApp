@@ -4,85 +4,115 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Smart Gym Counter</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; background: #121212; color: #fff; padding: 20px; }
-    h1 { margin-bottom: 20px; }
+    body { font-family: 'Arial', sans-serif; text-align: center; background: #0f0f0f; color: #fff; margin: 0; }
+    h1 { margin: 20px 0; font-size: 2.5em; color: #00ff99; }
+    .card {
+      background: rgba(30,30,30,0.95); border-radius: 12px; padding: 20px; margin: 20px auto;
+      max-width: 800px; box-shadow: 0 0 20px rgba(0,255,150,0.2);
+    }
     input, button, select {
-      font-size: 18px; padding: 10px; margin: 10px auto;
-      width: 80%; max-width: 350px; border-radius: 8px; border: none;
+      font-size: 18px; padding: 12px; margin: 8px; border-radius: 8px; border: none; outline: none;
     }
     input, select { background: #1e1e1e; color: #fff; text-align: center; }
-    button { background: #28a745; color: white; font-weight: bold; }
-    button:hover { background: #218838; cursor: pointer; }
+    button { background: #00ff99; color: #000; font-weight: bold; cursor: pointer; }
+    button:hover { background: #00cc77; }
+    .danger-btn { background: #ff4444; color: #fff; }
     .pause-btn { background: #ffc107; color: #000; }
-    .resume-btn { background: #007bff; }
+    .resume-btn { background: #007bff; color: #fff; }
     #exerciseReps div { margin-bottom: 8px; }
     #progressBarContainer {
       width: 80%; max-width: 400px; height: 25px;
       background: #333; border-radius: 12px; margin: 20px auto; overflow: hidden;
     }
-    #progressBar {
-      width: 0%; height: 100%;
-      background: #28a745; transition: width 0.3s ease-in-out;
-    }
+    #progressBar { width: 0%; height: 100%; background: #00ff99; transition: width 0.3s ease-in-out; }
     #status { font-size: 22px; margin-top: 20px; }
     #report { background:#1e1e1e; padding:15px; margin-top:20px; border-radius:8px; }
+    #restCircle {
+      width: 120px; height: 120px; border-radius: 50%; border: 6px solid #00ff99;
+      display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 20px auto;
+      background: rgba(0,255,150,0.1);
+    }
+    #exerciseImage { width: 80%; max-width: 300px; margin: 15px auto; border-radius: 8px; border: 2px solid #00ff99; display: block; }
+    canvas { background: #1e1e1e; border-radius: 8px; padding: 10px; }
   </style>
 </head>
 <body>
   <h1>Smart Gym Counter</h1>
-  
-  <!-- Workout Templates -->
-  <h3>Workout Template</h3>
-  <select id="template" onchange="loadTemplate()">
-    <option value="">-- Select --</option>
-    <option value="push">Push Day (Chest/Triceps)</option>
-    <option value="pull">Pull Day (Back/Biceps)</option>
-    <option value="legs">Leg Day</option>
-  </select>
-  
-  <!-- Exercises & Reps -->
-  <h3>Exercises & Reps</h3>
-  <div id="exerciseReps">
-    <div>
-      <label>Exercise 1: </label>
-      <input type="text" class="exerciseName" placeholder="Name">
-      <input type="number" class="exerciseRep" value="10" min="1" max="50">
-    </div>
+
+  <div class="card">
+    <!-- Workout Templates -->
+    <h3>Workout Template</h3>
+    <select id="template" onchange="loadTemplate()">
+      <option value="">-- Select --</option>
+      <option value="push">Push Day</option>
+      <option value="pull">Pull Day</option>
+      <option value="legs">Leg Day</option>
+    </select>
+    <button onclick="saveTemplate()">Save Current as Template</button>
   </div>
-  <button onclick="addExercise()">Add Exercise</button>
-  
-  <!-- Workout Settings -->
-  <input type="number" id="sets" placeholder="Number of sets (1-10)" min="1" max="10"><br>
-  <input type="number" id="startDelay" placeholder="Start delay (sec)" min="0"><br>
-  <input type="number" id="repDelay" placeholder="Delay between reps (sec)" min="0"><br>
-  <input type="number" id="restDelay" placeholder="Rest between sets (sec)" min="0"><br>
-  
-  <!-- Controls -->
-  <button onclick="startCounting()">Start</button>
-  <button class="pause-btn" onclick="pauseCounting()">Pause</button>
-  <button class="resume-btn" onclick="resumeCounting()">Resume</button>
-  
-  <!-- Progress Bar -->
+
+  <div class="card">
+    <!-- Exercises & Reps -->
+    <h3>Exercises & Reps</h3>
+    <div id="exerciseReps">
+      <div>
+        <label>Exercise 1: </label>
+        <input type="text" class="exerciseName" placeholder="Name">
+        <input type="number" class="exerciseRep" value="10" min="1" max="50">
+      </div>
+    </div>
+    <button onclick="addExercise()">Add Exercise</button>
+    <img id="exerciseImage" src="https://via.placeholder.com/300x200.png?text=Exercise+Image" alt="Exercise">
+  </div>
+
+  <div class="card">
+    <!-- Workout Settings -->
+    <input type="number" id="sets" placeholder="Number of sets (1-10)" min="1" max="10"><br>
+    <input type="number" id="startDelay" placeholder="Start delay (sec)" min="0"><br>
+    <input type="number" id="repDelay" placeholder="Delay between reps (sec)" min="0"><br>
+    <input type="number" id="restDelay" placeholder="Rest between sets (sec)" min="0"><br>
+  </div>
+
+  <div class="card">
+    <!-- Controls -->
+    <button onclick="startCounting()">Start</button>
+    <button class="pause-btn" onclick="pauseCounting()">Pause</button>
+    <button class="resume-btn" onclick="resumeCounting()">Resume</button>
+    <button onclick="resetWorkout()" class="danger-btn">Reset</button>
+  </div>
+
+  <!-- Progress & Rest Timer -->
   <div id="progressBarContainer">
     <div id="progressBar"></div>
   </div>
-  
+  <div id="restCircle" style="display:none;">0</div>
+
   <!-- Status -->
   <h2 id="status"></h2>
-  
+
   <!-- Report -->
   <div id="report" style="display:none;">
     <h3>Session Report</h3>
     <p id="reportContent"></p>
+    <button onclick="exportCSV()">Export as CSV</button>
   </div>
-  
+
+  <!-- Chart -->
+  <div class="card">
+    <h3>Progress Over Time</h3>
+    <canvas id="historyChart" width="400" height="200"></canvas>
+  </div>
+
   <audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
-  
+
 <script>
 let paused = false, status, beep;
-let startTime, endTime;
-let totalReps = 0;
+let startTime, endTime, totalReps = 0;
+let history = JSON.parse(localStorage.getItem('workoutHistory') || '[]');
+
+window.onload = function() { renderChart(); }
 
 function addExercise() {
   const container = document.getElementById('exerciseReps');
@@ -98,10 +128,12 @@ function loadTemplate() {
   const template = document.getElementById('template').value;
   const container = document.getElementById('exerciseReps');
   container.innerHTML = '';
-  let exercises = [];
-  if (template === 'push') exercises = [['Bench Press', 12], ['Shoulder Press', 10], ['Tricep Dips', 12]];
-  if (template === 'pull') exercises = [['Pull-Ups', 8], ['Barbell Row', 10], ['Bicep Curls', 12]];
-  if (template === 'legs') exercises = [['Squats', 15], ['Lunges', 12], ['Leg Press', 12]];
+  let exercises = JSON.parse(localStorage.getItem(`template-${template}`) || 'null');
+  if (!exercises) {
+    if (template === 'push') exercises = [['Bench Press', 12], ['Shoulder Press', 10], ['Tricep Dips', 12]];
+    if (template === 'pull') exercises = [['Pull-Ups', 8], ['Barbell Row', 10], ['Bicep Curls', 12]];
+    if (template === 'legs') exercises = [['Squats', 15], ['Lunges', 12], ['Leg Press', 12]];
+  }
   exercises.forEach((ex, idx) => {
     const div = document.createElement('div');
     div.innerHTML = `<label>Exercise ${idx+1}: </label>
@@ -109,18 +141,27 @@ function loadTemplate() {
                      <input type="number" class="exerciseRep" value="${ex[1]}" min="1" max="50">`;
     container.appendChild(div);
   });
+  updateExerciseImage(exercises[0][0]);
+}
+
+function saveTemplate() {
+  const templateName = prompt("Enter a name for this template:");
+  if (!templateName) return;
+  const exercises = Array.from(document.querySelectorAll('.exerciseRep')).map((input, i) => [
+    document.querySelectorAll('.exerciseName')[i].value || `Exercise ${i+1}`, parseInt(input.value)
+  ]);
+  localStorage.setItem(`template-${templateName}`, JSON.stringify(exercises));
+  alert("Template saved!");
 }
 
 function speak(text) { 
   const utterance = new SpeechSynthesisUtterance(text); 
-  utterance.rate = 1; 
+  utterance.rate = 0.9; utterance.pitch = 1; utterance.lang = "en-US";
   speechSynthesis.speak(utterance); 
 }
 
 async function wait(ms) {
-  await new Promise(r => {
-    let id = setInterval(() => { if (!paused) { clearInterval(id); setTimeout(r, 0); } }, 100);
-  });
+  await new Promise(r => { let id = setInterval(() => { if (!paused) { clearInterval(id); setTimeout(r, 0); } }, 100); });
   await new Promise(r => setTimeout(r, ms));
 }
 
@@ -141,7 +182,6 @@ async function startCounting() {
 
   if (!totalSets || totalSets < 1) { alert("Sets must be at least 1."); return; }
 
-  // Reset
   totalReps = 0;
   startTime = new Date();
   document.getElementById('report').style.display = 'none';
@@ -154,39 +194,108 @@ async function startCounting() {
   for (let set = 1; set <= totalSets; set++) {
     for (let e = 0; e < exercises.length; e++) {
       const ex = exercises[e];
+      updateExerciseImage(ex.name);
       speak(`Set ${set}, ${ex.name}`);
       for (let i = 1; i <= ex.reps; i++) {
         beep.play();
         await wait(500);
         totalReps++;
         status.innerText = `Set ${set}/${totalSets} - ${ex.name}: Rep ${i}`;
+        if (i === Math.floor(ex.reps / 2)) speak("Halfway there!");
+        if (i === ex.reps) speak("Last rep!");
         speak(i);
         updateProgress((totalReps / (totalSets * exercises.reduce((acc, ex) => acc + ex.reps, 0))) * 100);
         await wait(repDelay);
       }
     }
     if (set < totalSets) {
-      status.innerText = `Rest for ${restDelay/1000} sec`;
-      speak(`Rest for ${restDelay/1000} seconds`);
-      await wait(restDelay);
+      await showRestCountdown(restDelay / 1000);
     }
   }
   endTime = new Date();
   status.innerText = "Workout Complete!";
   speak("Workout complete!");
+  saveSession(totalReps, startTime, endTime);
   showReport(totalReps, startTime, endTime);
 }
 
-function updateProgress(percent) {
-  document.getElementById('progressBar').style.width = percent + "%";
+function updateProgress(percent) { document.getElementById('progressBar').style.width = percent + "%"; }
+
+async function showRestCountdown(seconds) {
+  const circle = document.getElementById('restCircle');
+  circle.style.display = "flex";
+  for (let t = seconds; t >= 1; t--) {
+    circle.innerText = t;
+    await wait(1000);
+  }
+  circle.style.display = "none";
+}
+
+function updateExerciseImage(name) {
+  document.getElementById('exerciseImage').src = `https://via.placeholder.com/300x200.png?text=${encodeURIComponent(name)}`;
+}
+
+function saveSession(reps, start, end) {
+  history.unshift({ reps, date: new Date().toLocaleDateString() });
+  if (history.length > 20) history.pop();
+  localStorage.setItem('workoutHistory', JSON.stringify(history));
+  renderChart();
 }
 
 function showReport(reps, start, end) {
   const timeMinutes = Math.round((end - start) / 60000);
-  const calories = Math.round(reps * 0.5); // Rough estimate
+  const calories = Math.round(reps * 0.5);
   const report = `Total Reps: ${reps}<br>Duration: ${timeMinutes} minutes<br>Estimated Calories: ${calories} kcal`;
   document.getElementById('reportContent').innerHTML = report;
   document.getElementById('report').style.display = 'block';
+}
+
+function exportCSV() {
+  let csv = "Date,Reps\n";
+  history.forEach(h => csv += `${h.date},${h.reps}\n`);
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = "workout_history.csv"; a.click();
+}
+
+function resetWorkout() {
+  if (!confirm("Are you sure you want to reset everything?")) return;
+  paused = false;
+  totalReps = 0;
+  document.getElementById('status').innerText = "";
+  document.getElementById('progressBar').style.width = "0%";
+  document.getElementById('report').style.display = 'none';
+  document.getElementById('reportContent').innerHTML = "";
+  document.getElementById('restCircle').style.display = 'none';
+  const container = document.getElementById('exerciseReps');
+  container.innerHTML = `<div><label>Exercise 1: </label>
+                         <input type="text" class="exerciseName" placeholder="Name">
+                         <input type="number" class="exerciseRep" value="10" min="1" max="50"></div>`;
+  document.getElementById('template').value = "";
+  document.getElementById('sets').value = "";
+  document.getElementById('startDelay').value = "";
+  document.getElementById('repDelay').value = "";
+  document.getElementById('restDelay').value = "";
+}
+
+function renderChart() {
+  const ctx = document.getElementById('historyChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: history.map(h => h.date).reverse(),
+      datasets: [{
+        label: 'Reps',
+        data: history.map(h => h.reps).reverse(),
+        borderColor: '#00ff99',
+        backgroundColor: 'rgba(0,255,153,0.2)',
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+  });
 }
 </script>
 </body>
