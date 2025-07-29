@@ -1,113 +1,192 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Gym Counter</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; background: #121212; color: #fff; padding: 20px; }
-        input, button, select {
-            font-size: 20px; padding: 12px; margin: 10px auto;
-            width: 80%; max-width: 350px; border-radius: 8px; border: none;
-        }
-        input, select { background: #1e1e1e; color: #fff; text-align: center; }
-        button { background: #28a745; color: white; font-weight: bold; }
-        button:hover { background: #218838; cursor: pointer; }
-        .pause-btn { background: #ffc107; color: #000; }
-        .resume-btn { background: #007bff; }
-        h1 { margin-bottom: 20px; }
-        h2 { margin-top: 20px; font-size: 24px; }
-        #history { margin-top: 30px; text-align: left; max-width: 400px; margin-left: auto; margin-right: auto; }
-        #history h3 { text-align: center; }
-        #history li { background: #1e1e1e; padding: 10px; margin: 5px 0; border-radius: 6px; list-style: none; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Gym Counter</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; background: #121212; color: #fff; padding: 20px; }
+    h1 { margin-bottom: 20px; }
+    input, button, select {
+      font-size: 18px; padding: 10px; margin: 10px auto;
+      width: 80%; max-width: 350px; border-radius: 8px; border: none;
+    }
+    input, select { background: #1e1e1e; color: #fff; text-align: center; }
+    button { background: #28a745; color: white; font-weight: bold; }
+    button:hover { background: #218838; cursor: pointer; }
+    .pause-btn { background: #ffc107; color: #000; }
+    .resume-btn { background: #007bff; }
+    #exerciseReps div { margin-bottom: 8px; }
+    #progressBarContainer {
+      width: 80%; max-width: 400px; height: 25px;
+      background: #333; border-radius: 12px; margin: 20px auto; overflow: hidden;
+    }
+    #progressBar {
+      width: 0%; height: 100%;
+      background: #28a745; transition: width 0.3s ease-in-out;
+    }
+    #status { font-size: 22px; margin-top: 20px; }
+    #report { background:#1e1e1e; padding:15px; margin-top:20px; border-radius:8px; }
+  </style>
 </head>
 <body>
-    <h1>Smart Gym Counter</h1>
-    <input type="number" id="maxReps" placeholder="Reps per set (1-50)" min="1" max="50"><br>
-    <input type="number" id="sets" placeholder="Number of sets (1-10)" min="1" max="10"><br>
-    <input type="number" id="startDelay" placeholder="Start delay (sec)" min="0"><br>
-    <input type="number" id="repDelay" placeholder="Delay between reps (sec)" min="0"><br>
-    <input type="number" id="restDelay" placeholder="Rest between sets (sec)" min="0"><br>
-    <select id="mode">
-        <option value="up">Count Up</option>
-        <option value="down">Count Down</option>
-    </select><br>
-    <button onclick="startCounting()">Start</button>
-    <button class="pause-btn" onclick="pauseCounting()">Pause</button>
-    <button class="resume-btn" onclick="resumeCounting()">Resume</button>
-    <h2 id="status"></h2>
-    <audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
-    <div id="history">
-        <h3>Workout History</h3>
-        <ul id="historyList"></ul>
+  <h1>Smart Gym Counter</h1>
+  
+  <!-- Workout Templates -->
+  <h3>Workout Template</h3>
+  <select id="template" onchange="loadTemplate()">
+    <option value="">-- Select --</option>
+    <option value="push">Push Day (Chest/Triceps)</option>
+    <option value="pull">Pull Day (Back/Biceps)</option>
+    <option value="legs">Leg Day</option>
+  </select>
+  
+  <!-- Exercises & Reps -->
+  <h3>Exercises & Reps</h3>
+  <div id="exerciseReps">
+    <div>
+      <label>Exercise 1: </label>
+      <input type="text" class="exerciseName" placeholder="Name">
+      <input type="number" class="exerciseRep" value="10" min="1" max="50">
     </div>
-    <button id="logToHealth" style="display:none; background:#ff6b6b; color:#fff;">Log to Apple Health</button>
-
+  </div>
+  <button onclick="addExercise()">Add Exercise</button>
+  
+  <!-- Workout Settings -->
+  <input type="number" id="sets" placeholder="Number of sets (1-10)" min="1" max="10"><br>
+  <input type="number" id="startDelay" placeholder="Start delay (sec)" min="0"><br>
+  <input type="number" id="repDelay" placeholder="Delay between reps (sec)" min="0"><br>
+  <input type="number" id="restDelay" placeholder="Rest between sets (sec)" min="0"><br>
+  
+  <!-- Controls -->
+  <button onclick="startCounting()">Start</button>
+  <button class="pause-btn" onclick="pauseCounting()">Pause</button>
+  <button class="resume-btn" onclick="resumeCounting()">Resume</button>
+  
+  <!-- Progress Bar -->
+  <div id="progressBarContainer">
+    <div id="progressBar"></div>
+  </div>
+  
+  <!-- Status -->
+  <h2 id="status"></h2>
+  
+  <!-- Report -->
+  <div id="report" style="display:none;">
+    <h3>Session Report</h3>
+    <p id="reportContent"></p>
+  </div>
+  
+  <audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+  
 <script>
-let paused = false, i = 0, currentSet = 1, maxReps, totalSets, repDelay, restDelay, mode, status, beep;
-window.onload = function() {
-    document.getElementById('maxReps').value = localStorage.getItem('maxReps') || '';
-    document.getElementById('sets').value = localStorage.getItem('sets') || '';
-    document.getElementById('startDelay').value = localStorage.getItem('startDelay') || '';
-    document.getElementById('repDelay').value = localStorage.getItem('repDelay') || '';
-    document.getElementById('restDelay').value = localStorage.getItem('restDelay') || '';
-    document.getElementById('mode').value = localStorage.getItem('mode') || 'up';
-    renderHistory();
-};
-function speak(text) { const utterance = new SpeechSynthesisUtterance(text); utterance.rate = 1; speechSynthesis.speak(utterance); }
-async function wait(ms) { await new Promise(r => { let id = setInterval(() => { if (!paused) { clearInterval(id); setTimeout(r, 0); } }, 100); }); await new Promise(r => setTimeout(r, ms)); }
+let paused = false, status, beep;
+let startTime, endTime;
+let totalReps = 0;
+
+function addExercise() {
+  const container = document.getElementById('exerciseReps');
+  const count = container.querySelectorAll('.exerciseRep').length + 1;
+  const div = document.createElement('div');
+  div.innerHTML = `<label>Exercise ${count}: </label>
+                   <input type="text" class="exerciseName" placeholder="Name">
+                   <input type="number" class="exerciseRep" value="10" min="1" max="50">`;
+  container.appendChild(div);
+}
+
+function loadTemplate() {
+  const template = document.getElementById('template').value;
+  const container = document.getElementById('exerciseReps');
+  container.innerHTML = '';
+  let exercises = [];
+  if (template === 'push') exercises = [['Bench Press', 12], ['Shoulder Press', 10], ['Tricep Dips', 12]];
+  if (template === 'pull') exercises = [['Pull-Ups', 8], ['Barbell Row', 10], ['Bicep Curls', 12]];
+  if (template === 'legs') exercises = [['Squats', 15], ['Lunges', 12], ['Leg Press', 12]];
+  exercises.forEach((ex, idx) => {
+    const div = document.createElement('div');
+    div.innerHTML = `<label>Exercise ${idx+1}: </label>
+                     <input type="text" class="exerciseName" value="${ex[0]}">
+                     <input type="number" class="exerciseRep" value="${ex[1]}" min="1" max="50">`;
+    container.appendChild(div);
+  });
+}
+
+function speak(text) { 
+  const utterance = new SpeechSynthesisUtterance(text); 
+  utterance.rate = 1; 
+  speechSynthesis.speak(utterance); 
+}
+
+async function wait(ms) {
+  await new Promise(r => {
+    let id = setInterval(() => { if (!paused) { clearInterval(id); setTimeout(r, 0); } }, 100);
+  });
+  await new Promise(r => setTimeout(r, ms));
+}
+
 function pauseCounting() { paused = true; }
 function resumeCounting() { paused = false; }
+
 async function startCounting() {
-    maxReps = parseInt(document.getElementById('maxReps').value);
-    totalSets = parseInt(document.getElementById('sets').value);
-    let startDelay = parseInt(document.getElementById('startDelay').value) * 1000;
-    repDelay = parseInt(document.getElementById('repDelay').value) * 1000;
-    restDelay = parseInt(document.getElementById('restDelay').value) * 1000;
-    mode = document.getElementById('mode').value;
-    status = document.getElementById('status');
-    beep = document.getElementById('beep');
-    if (isNaN(maxReps) || maxReps < 1 || maxReps > 50) { alert("Reps must be 1–50."); return; }
-    if (isNaN(totalSets) || totalSets < 1 || totalSets > 10) { alert("Sets must be 1–10."); return; }
-    localStorage.setItem('maxReps', maxReps); localStorage.setItem('sets', totalSets);
-    localStorage.setItem('startDelay', startDelay / 1000); localStorage.setItem('repDelay', repDelay / 1000);
-    localStorage.setItem('restDelay', restDelay / 1000); localStorage.setItem('mode', mode);
-    status.innerText = `Starting in ${startDelay / 1000} sec...`; speak(`Starting in ${startDelay / 1000} seconds`); await wait(startDelay);
-    for (currentSet = 1; currentSet <= totalSets; currentSet++) {
-        speak(`Set ${currentSet} starting`);
-        let halfway = Math.floor(maxReps / 2);
-        for (i = (mode === 'up') ? 1 : maxReps; (mode === 'up') ? i <= maxReps : i >= 1; (mode === 'up') ? i++ : i--) {
-            beep.play(); await wait(500);
-            status.innerText = `Set ${currentSet}/${totalSets} - Rep: ${i}`;
-            if (i === halfway) speak("Halfway there!");
-            if (i === 1 && mode === 'down') speak("Last rep!");
-            if (i === maxReps && mode === 'up') speak("Last rep!");
-            speak(i); await wait(repDelay);
-        }
-        if (currentSet < totalSets) {
-            status.innerText = `Rest for ${restDelay / 1000} sec`; speak(`Rest for ${restDelay / 1000} seconds`); await wait(restDelay);
-        }
+  const exercises = Array.from(document.querySelectorAll('.exerciseRep')).map((input, i) => ({
+    name: document.querySelectorAll('.exerciseName')[i].value || `Exercise ${i+1}`,
+    reps: parseInt(input.value)
+  }));
+  const totalSets = parseInt(document.getElementById('sets').value);
+  const startDelay = parseInt(document.getElementById('startDelay').value) * 1000;
+  const repDelay = parseInt(document.getElementById('repDelay').value) * 1000;
+  const restDelay = parseInt(document.getElementById('restDelay').value) * 1000;
+  status = document.getElementById('status');
+  beep = document.getElementById('beep');
+
+  if (!totalSets || totalSets < 1) { alert("Sets must be at least 1."); return; }
+
+  // Reset
+  totalReps = 0;
+  startTime = new Date();
+  document.getElementById('report').style.display = 'none';
+  updateProgress(0);
+
+  status.innerText = `Starting in ${startDelay/1000} sec...`;
+  speak(`Starting in ${startDelay/1000} seconds`);
+  await wait(startDelay);
+
+  for (let set = 1; set <= totalSets; set++) {
+    for (let e = 0; e < exercises.length; e++) {
+      const ex = exercises[e];
+      speak(`Set ${set}, ${ex.name}`);
+      for (let i = 1; i <= ex.reps; i++) {
+        beep.play();
+        await wait(500);
+        totalReps++;
+        status.innerText = `Set ${set}/${totalSets} - ${ex.name}: Rep ${i}`;
+        speak(i);
+        updateProgress((totalReps / (totalSets * exercises.reduce((acc, ex) => acc + ex.reps, 0))) * 100);
+        await wait(repDelay);
+      }
     }
-    status.innerText = "Workout Complete!"; speak("Workout complete!");
-    saveHistory(maxReps, totalSets);
+    if (set < totalSets) {
+      status.innerText = `Rest for ${restDelay/1000} sec`;
+      speak(`Rest for ${restDelay/1000} seconds`);
+      await wait(restDelay);
+    }
+  }
+  endTime = new Date();
+  status.innerText = "Workout Complete!";
+  speak("Workout complete!");
+  showReport(totalReps, startTime, endTime);
 }
-function saveHistory(reps, sets) {
-    let history = JSON.parse(localStorage.getItem('workoutHistory') || '[]');
-    const entry = { reps, sets, date: new Date().toLocaleString() };
-    history.unshift(entry); if (history.length > 5) history.pop();
-    localStorage.setItem('workoutHistory', JSON.stringify(history)); renderHistory();
-    document.getElementById('logToHealth').style.display = 'block';
-    document.getElementById('logToHealth').onclick = () => logToHealthKit(entry);
+
+function updateProgress(percent) {
+  document.getElementById('progressBar').style.width = percent + "%";
 }
-function renderHistory() {
-    let history = JSON.parse(localStorage.getItem('workoutHistory') || '[]');
-    document.getElementById('historyList').innerHTML = history.map(h => `<li>${h.date}: ${h.sets} sets × ${h.reps} reps</li>`).join('');
-}
-function logToHealthKit(entry) {
-    const shortcutName = "Log Gym Workout";
-    const url = `shortcuts://run-shortcut?name=${encodeURIComponent(shortcutName)}&input=${encodeURIComponent(`${entry.sets} sets x ${entry.reps} reps`)}`;
-    window.location.href = url;
+
+function showReport(reps, start, end) {
+  const timeMinutes = Math.round((end - start) / 60000);
+  const calories = Math.round(reps * 0.5); // Rough estimate
+  const report = `Total Reps: ${reps}<br>Duration: ${timeMinutes} minutes<br>Estimated Calories: ${calories} kcal`;
+  document.getElementById('reportContent').innerHTML = report;
+  document.getElementById('report').style.display = 'block';
 }
 </script>
 </body>
